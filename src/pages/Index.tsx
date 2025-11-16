@@ -103,7 +103,7 @@ const Index = () => {
       <div className="w-full max-w-7xl">
         <div className="glass-shell rounded-3xl border border-glass-border/20 p-4 md:p-6 backdrop-blur-xl bg-glass/40 shadow-2xl">
           {/* Header */}
-          <header className="mb-8">
+          <header className="mb-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary to-secondary bg-clip-text text-transparent mb-2">
@@ -127,7 +127,7 @@ const Index = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left Column - IP & Details */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* IP Cards */}
               <div className="grid grid-cols-2 gap-4">
                 <Card className="p-4 bg-card/50 backdrop-blur-sm border-glass-border/30 hover:border-primary/40 transition-all duration-300 hover:shadow-lg hover:shadow-primary/20 group">
@@ -226,7 +226,7 @@ const Index = () => {
             </div>
 
             {/* Right Column - Map */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               <Card className="p-5 bg-card/50 backdrop-blur-sm border-glass-border/30">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xs uppercase tracking-widest text-muted-foreground">
