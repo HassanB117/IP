@@ -99,9 +99,9 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-6 relative z-10">
+    <div className="min-h-screen w-full flex items-center justify-center p-4 md:p-6 relative z-10">
       <div className="w-full max-w-7xl">
-        <div className="glass-shell rounded-3xl border border-glass-border/20 p-6 backdrop-blur-xl bg-glass/40 shadow-2xl">
+        <div className="glass-shell rounded-3xl border border-glass-border/20 p-4 md:p-6 backdrop-blur-xl bg-glass/40 shadow-2xl">
           {/* Header */}
           <header className="mb-8">
             <div className="flex items-center justify-between flex-wrap gap-4">
