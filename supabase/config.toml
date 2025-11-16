@@ -1,0 +1,4 @@
+project_id = "pbfcnkakqvbchbtvldwu"
+
+[functions.vpn-detect]
+verify_jwt = false

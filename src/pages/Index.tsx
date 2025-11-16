@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, RefreshCw, Download } from "lucide-react";
+import { Copy, RefreshCw, Download, Zap, Shield, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { SpeedTest, SpeedTestResult } from "@/utils/speedTest";
 
 interface LocationData {
   ipv4?: string;
@@ -16,10 +18,22 @@ interface LocationData {
   timestamp?: string;
 }
 
+interface VpnData {
+  isVpn: boolean;
+  vpnType: string;
+  hosting: boolean;
+  org: string;
+}
+
 const Index = () => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<LocationData>({});
   const [mapLoading, setMapLoading] = useState(true);
+  const [vpnData, setVpnData] = useState<VpnData | null>(null);
+  const [vpnLoading, setVpnLoading] = useState(false);
+  const [speedTest, setSpeedTest] = useState<SpeedTestResult | null>(null);
+  const [speedTestLoading, setSpeedTestLoading] = useState(false);
+  const [speedTestProgress, setSpeedTestProgress] = useState("");
   const { toast } = useToast();
 
   const fetchIPData = async () => {
@@ -59,6 +73,11 @@ const Index = () => {
       };
 
       setData(newData);
+      
+      // Automatically detect VPN after getting IP
+      if (newData.ipv4) {
+        detectVPN(newData.ipv4);
+      }
     } catch (error) {
       console.error("Error fetching IP data:", error);
       toast({
@@ -74,6 +93,55 @@ const Index = () => {
   useEffect(() => {
     fetchIPData();
   }, []);
+
+  const detectVPN = async (ip: string) => {
+    setVpnLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('vpn-detect', {
+        body: { ip }
+      });
+
+      if (error) throw error;
+
+      setVpnData(data);
+    } catch (error) {
+      console.error('Error detecting VPN:', error);
+      toast({
+        title: "VPN Detection Failed",
+        description: "Could not determine VPN status",
+        variant: "destructive",
+      });
+    } finally {
+      setVpnLoading(false);
+    }
+  };
+
+  const runSpeedTest = async () => {
+    setSpeedTestLoading(true);
+    setSpeedTestProgress("Initializing...");
+    
+    try {
+      const result = await SpeedTest.runFullTest((step) => {
+        setSpeedTestProgress(step);
+      });
+      
+      setSpeedTest(result);
+      toast({
+        title: "Speed Test Complete",
+        description: `Download: ${result.downloadSpeed} Mbps, Upload: ${result.uploadSpeed} Mbps`,
+      });
+    } catch (error) {
+      console.error('Error running speed test:', error);
+      toast({
+        title: "Speed Test Failed",
+        description: "Could not complete speed test",
+        variant: "destructive",
+      });
+    } finally {
+      setSpeedTestLoading(false);
+      setSpeedTestProgress("");
+    }
+  };
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -222,6 +290,121 @@ const Index = () => {
                 <div className="mt-4 text-xs text-muted-foreground text-center">
                   Last updated: {data.timestamp || "—"}
                 </div>
+              </Card>
+
+              {/* VPN Detection */}
+              <Card className="p-5 bg-card/50 backdrop-blur-sm border-glass-border/30">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-primary" />
+                    <h3 className="text-xs uppercase tracking-widest text-muted-foreground">
+                      VPN Detection
+                    </h3>
+                  </div>
+                  <Button
+                    onClick={() => data.ipv4 && detectVPN(data.ipv4)}
+                    disabled={vpnLoading || !data.ipv4}
+                    variant="ghost"
+                    size="sm"
+                    className="text-primary hover:text-primary hover:bg-primary/10"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${vpnLoading ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
+                
+                {vpnLoading ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    Analyzing connection...
+                  </div>
+                ) : vpnData ? (
+                  <div className="space-y-3">
+                    <div className={`p-3 rounded-xl border ${
+                      vpnData.isVpn 
+                        ? 'bg-destructive/10 border-destructive/30' 
+                        : 'bg-success/10 border-success/30'
+                    }`}>
+                      <div className="text-xs text-muted-foreground mb-1">Status</div>
+                      <div className={`text-sm font-semibold ${
+                        vpnData.isVpn ? 'text-destructive' : 'text-success'
+                      }`}>
+                        {vpnData.isVpn ? `⚠️ ${vpnData.vpnType} Detected` : '✓ Direct Connection'}
+                      </div>
+                    </div>
+                    {vpnData.isVpn && (
+                      <div className="p-3 bg-muted/30 rounded-xl border border-border/20">
+                        <div className="text-xs text-muted-foreground mb-1">Service Type</div>
+                        <div className="text-sm font-semibold text-foreground">
+                          {vpnData.vpnType}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    Click refresh to detect VPN/Proxy
+                  </div>
+                )}
+              </Card>
+
+              {/* Speed Test */}
+              <Card className="p-5 bg-card/50 backdrop-blur-sm border-glass-border/30">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-secondary" />
+                    <h3 className="text-xs uppercase tracking-widest text-muted-foreground">
+                      Speed Test
+                    </h3>
+                  </div>
+                  <Button
+                    onClick={runSpeedTest}
+                    disabled={speedTestLoading}
+                    size="sm"
+                    className="bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/30"
+                  >
+                    <Activity className={`w-3 h-3 mr-2 ${speedTestLoading ? "animate-pulse" : ""}`} />
+                    {speedTestLoading ? "Testing..." : "Run Test"}
+                  </Button>
+                </div>
+
+                {speedTestLoading ? (
+                  <div className="text-center py-4">
+                    <div className="text-muted-foreground mb-2">{speedTestProgress}</div>
+                    <div className="w-full h-2 bg-muted/30 rounded-full overflow-hidden">
+                      <div className="h-full bg-secondary/50 animate-pulse" style={{ width: '60%' }} />
+                    </div>
+                  </div>
+                ) : speedTest ? (
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3 bg-muted/30 rounded-xl border border-border/20">
+                      <div className="text-xs text-muted-foreground mb-1">Download</div>
+                      <div className="text-sm font-semibold text-foreground">
+                        {speedTest.downloadSpeed >= 0 
+                          ? `${speedTest.downloadSpeed} Mbps` 
+                          : 'Failed'}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-muted/30 rounded-xl border border-border/20">
+                      <div className="text-xs text-muted-foreground mb-1">Upload</div>
+                      <div className="text-sm font-semibold text-foreground">
+                        {speedTest.uploadSpeed >= 0 
+                          ? `${speedTest.uploadSpeed} Mbps` 
+                          : 'Failed'}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-muted/30 rounded-xl border border-border/20">
+                      <div className="text-xs text-muted-foreground mb-1">Ping</div>
+                      <div className="text-sm font-semibold text-foreground">
+                        {speedTest.ping >= 0 
+                          ? `${speedTest.ping} ms` 
+                          : 'Failed'}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    Click "Run Test" to measure your connection speed
+                  </div>
+                )}
               </Card>
             </div>
 
